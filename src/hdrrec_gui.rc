@@ -1,0 +1,56 @@
+#pragma code_page(65001)
+#include <windows.h>
+#include <commctrl.h>
+#include "hdrrec_gui_res.h"
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "hdrrec_gui.manifest"
+
+IDD_MAIN DIALOGEX 0, 0, 282, 208
+STYLE DS_SETFONT | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "hdrrec"
+FONT 9, "Yu Gothic UI", 400, 0, 0x80
+BEGIN
+    LTEXT           "● 待機中", IDC_STATE, 8, 6, 266, 14, SS_NOPREFIX
+    LTEXT           "", IDC_STATS, 8, 22, 266, 10, SS_NOPREFIX | SS_ENDELLIPSIS
+    LTEXT           "", IDC_LAST, 8, 33, 266, 10, SS_NOPREFIX | SS_ENDELLIPSIS
+
+    LTEXT           "ホットキー", -1, 8, 53, 40, 10
+    CONTROL         "", IDC_HOTKEY, "msctls_hotkey32", WS_BORDER | WS_TABSTOP, 50, 51, 86, 13
+    PUSHBUTTON      "Alt+F9 に戻す", IDC_HOTKEY_RESET, 140, 50, 52, 15
+    LTEXT           "録画の開始 / 停止", IDC_HOTKEY_NOTE, 196, 53, 80, 10, SS_NOPREFIX | SS_ENDELLIPSIS
+
+    LTEXT           "保存先", -1, 8, 72, 40, 10
+    EDITTEXT        IDC_FOLDER, 50, 70, 186, 13, ES_AUTOHSCROLL
+    PUSHBUTTON      "参照...", IDC_BROWSE, 240, 69, 34, 15
+
+    LTEXT           "モニター", -1, 8, 91, 40, 10
+    COMBOBOX        IDC_MONITOR, 50, 89, 224, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    LTEXT           "エンコーダ", -1, 8, 110, 40, 10
+    COMBOBOX        IDC_CODEC, 50, 108, 66, 80, CBS_DROPDOWNLIST | WS_TABSTOP
+    LTEXT           "プリセット", -1, 124, 110, 34, 10
+    COMBOBOX        IDC_PRESET, 160, 108, 114, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    LTEXT           "画質", -1, 8, 129, 40, 10
+    COMBOBOX        IDC_RCMODE, 50, 127, 80, 80, CBS_DROPDOWNLIST | WS_TABSTOP
+    EDITTEXT        IDC_QVALUE, 134, 127, 40, 13, ES_NUMBER
+    CONTROL         "", IDC_QSPIN, "msctls_updown32",
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,
+                    0, 0, 10, 13
+    LTEXT           "", IDC_QUNIT, 180, 129, 94, 10, SS_NOPREFIX | SS_ENDELLIPSIS
+
+    LTEXT           "音声", -1, 8, 148, 40, 10
+    COMBOBOX        IDC_AUDIOSRC, 50, 146, 160, 160, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_AGAIN, 216, 146, 34, 13
+    CONTROL         "", IDC_AGAIN_SPIN, "msctls_updown32",
+                    UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS | UDS_NOTHOUSANDS,
+                    0, 0, 10, 13
+    LTEXT           "dB", -1, 254, 148, 20, 10
+
+    LTEXT           "GPU 優先度", -1, 8, 167, 40, 10
+    COMBOBOX        IDC_GPUPRIO, 50, 165, 160, 80, CBS_DROPDOWNLIST | WS_TABSTOP
+
+    PUSHBUTTON      "録画開始", IDC_TOGGLE, 8, 186, 84, 16
+    PUSHBUTTON      "保存先を開く", IDC_OPEN, 98, 186, 70, 16
+END

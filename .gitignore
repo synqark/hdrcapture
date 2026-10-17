@@ -1,0 +1,13 @@
+build/
+tests/
+third_party/ffmpeg-min/
+third_party/src/
+*.mkv
+*.raw
+*.exe
+/*.png
+dist/
+
+# local development notes (not published)
+CLAUDE.md
+docs/
