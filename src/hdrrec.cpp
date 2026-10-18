@@ -1145,6 +1145,7 @@ int main() {
     double phase = 0.0;
     const double kFillStart = 6.0;           // empty slots before repeats are fed during a freeze
     const int64_t kFillMargin = 3;           // ...staying this many slots behind the current time
+    const double kPhaseMax = 0.5;            // |phase| limit in slots (keeps video within ~8 ms of real time)
     int64_t locked_frames = 0;
 
     // ---- encoder thread: converts shared FP16 buffers to P010 and encodes ----
@@ -1315,6 +1316,11 @@ int main() {
         int64_t slot = llround(sf);
         double err = sf - (double)slot;                 // [-0.5, 0.5]
         phase += (locked_frames < 30 ? 0.3 : 0.03) * err;
+        // The phase may only center presents inside their slots, not absorb a rate difference: with a
+        // source slightly below 60 fps (e.g. 59.94) it grew without bound and the video ran ahead of
+        // the QPC-placed audio (0.8 s after 30 min). Clamped, the slow drift ends in a single repeat
+        // every ~1000 frames, which is the correct 59.94 -> 60 conversion.
+        phase = phase > kPhaseMax ? kPhaseMax : (phase < -kPhaseMax ? -kPhaseMax : phase);
         locked_frames++;
 
         const char *action = "new";

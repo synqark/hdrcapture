@@ -34,6 +34,12 @@ def main(path):
           f"p99.5={np.percentile(dt, 99.5):.2f} max={dt.max():.2f} ms")
     print(f"intervals > 25 ms : {int((dt > 25).sum())}  (source / game hitches when acc == 1)")
     print(f"acquire latency   : median={np.median(lat):.2f} p99={np.percentile(lat, 99):.2f} max={lat.max():.2f} ms")
+    # video vs real time: the audio is placed on real time, so this is the A/V offset of each frame
+    placed = [r for r in rows if r["action"] != "drop"]
+    dev = np.array([int(r["present_us"]) / 1e6 - int(r["slot"]) / 60.0 for r in placed]) * 1000
+    ph = np.array([float(r["phase"]) for r in rows])
+    print(f"video - real time : max |offset| {np.abs(dev).max():.1f} ms (at {int(placed[int(np.abs(dev).argmax())]['present_us']) / 1e6:.1f} s), "
+          f"phase {ph.min():+.2f}..{ph.max():+.2f} slots (assumes 60 fps)")
     timed = [r for r in rows if r.get("copy_ms")]
     if timed:
         cp = np.array([float(r["copy_ms"]) for r in timed])
