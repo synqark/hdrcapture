@@ -14,28 +14,6 @@ otherwise smooth 60 fps recordings — that OBS and NVIDIA App recordings can sh
 In 20-second test recordings of a game running at a steady 60 fps, hdrrec writes 1200 of 1200
 frames as unique game frames, with no repeats and no skips.
 
-## How it avoids interval stutter
-
-Typical recorders sample the screen on their own fixed timer. When that timer and the game's
-presents drift against each other, a frame is periodically captured twice and the next one is
-lost. hdrrec does not sample on a timer:
-
-- **Desktop Duplication** delivers every desktop update with its `LastPresentTime`
-  (the moment the game presented the frame).
-- Each frame is placed into the 60 fps output timeline by that **present timestamp**, with a
-  small phase-locked loop that keeps presents centred in their output slots.
-- Only slots in which the game really produced no new frame are filled with a repeat, and the
-  recorder reports why (`src` = the game did not present, `miss` = the capture was too late).
-
-Other details:
-
-- Capture as FP16 scRGB, conversion to BT.2020 PQ 10-bit with a GPU shader (no clipping of
-  highlights above SDR white), HDR10 mastering-display / content-light-level metadata in the
-  bitstream and in the MKV container.
-- Separate D3D11 devices for capture and encoding, so NVENC never blocks the capture loop.
-- Audio placed on the same clock (QPC timestamps), stays in sync over long recordings
-  (38 minutes: audio and video length differ by 0.01 s).
-
 ## Requirements
 
 - Windows 11 (tested). Recent Windows 10 versions may work but are untested.
