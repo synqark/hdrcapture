@@ -14,6 +14,8 @@ otherwise smooth 60 fps recordings — that OBS and NVIDIA App recordings can sh
 In 20-second test recordings of a game running at a steady 60 fps, hdrrec writes 1200 of 1200
 frames as unique game frames, with no repeats and no skips.
 
+<p align="center"><img src="images/gui.png" alt="hdrrec GUI (the user interface is in Japanese)" width="480"></p>
+
 ## Requirements
 
 - Windows 11 (tested). Recent Windows 10 versions may work but are untested.
@@ -24,7 +26,7 @@ frames as unique game frames, with no repeats and no skips.
 ## Usage (GUI)
 
 Download the release zip, extract it, and run `hdrrec_gui.exe` (`hdrrec.exe` must stay in the
-same folder).
+same folder). The GUI is currently in Japanese only; the command line works in any language.
 
 - **Alt+F9** (changeable) starts / stops a recording, as do the window button and the
   notification-area (tray) menu. The tray icon is gray while idle, red while recording.

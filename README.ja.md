@@ -13,6 +13,8 @@ OBS や NVIDIA App の録画で起きる **interval stutter**（滑らかな 60f
 を解消するために作りました。ゲームが安定して 60fps で動いている状態の 20 秒テスト録画では、
 1200 フレーム中 1200 フレームがすべて異なるゲームフレームになり、重複も欠落もありません。
 
+<p align="center"><img src="images/gui.png" alt="hdrrec の GUI" width="480"></p>
+
 ## 動作環境
 
 - Windows 11（動作確認済み）。最近の Windows 10 でも動く可能性はありますが未確認です。
