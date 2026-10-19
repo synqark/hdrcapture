@@ -4,9 +4,9 @@
 
 [日本語版 README](README.ja.md)
 
-hdrrec records a borderless-fullscreen game at 3840x2160, 60 fps constant frame rate, HDR10
-(BT.2020 PQ, 10-bit) with NVIDIA NVENC (HEVC or AV1), together with system audio or the audio of a
-single application.
+hdrrec records a borderless-fullscreen game at 3840x2160 with a constant frame rate (60 fps by
+default; any integer rate such as 120 fps can be chosen), HDR10 (BT.2020 PQ, 10-bit) with NVIDIA
+NVENC (HEVC or AV1), together with system audio or the audio of a single application.
 
 It was written to get rid of the **interval stutter** — periodic duplicated / skipped frames in
 otherwise smooth 60 fps recordings — that OBS and NVIDIA App recordings can show
@@ -30,7 +30,7 @@ same folder).
   notification-area (tray) menu. The tray icon is gray while idle, red while recording.
 - Minimize hides the window to the tray; the close button exits (a running recording is stopped
   and finalized first). `hdrrec_gui.exe /tray` starts hidden.
-- Settings: hotkey, output folder, monitor, encoder (HEVC / AV1), preset (p1–p4), quality
+- Settings: hotkey, output folder, monitor, frame rate, encoder (HEVC / AV1), preset (p1–p4), quality
   (CQ or bitrate), audio source (whole system / none / one application) with gain,
   GPU priority. They are stored in `hdrrec_gui.ini` next to the executable.
 - Every recording also writes `logs\<name>.log` and `logs\<name>_times.csv`
@@ -55,6 +55,7 @@ hdrrec.exe [-o out.mkv] [-t sec] [-monitor N] [-fps 60] [-codec hevc|av1]
 | `-o` | Output file (default `rec_YYYYmmdd_HHMMSS.mkv`) |
 | `-t` | Stop after N seconds (default: until Enter, Ctrl+C or end of stdin) |
 | `-monitor` | Monitor index, see `-list-monitors` |
+| `-fps` | Output frame rate, integer 1–480 (default 60). The pacing parameters are defined in real time, so they behave the same at any rate |
 | `-codec` | `hevc` (Main10) or `av1` |
 | `-cq` / `-bitrate` | Constant quality (HEVC 1–51, AV1 1–63, lower = better) or average bitrate in Mbit/s |
 | `-preset` | NVENC preset `p1`–`p7`. **p5 and above cannot sustain 4K60 while a game loads the GPU** |
@@ -98,8 +99,11 @@ creates the release zip and fetches the matching FFmpeg source archive.
   stops, or the picture freezes while HDR is off).
 - If the default audio device changes during a recording, system audio continues as silence
   (per-application audio is not affected).
-- In very GPU-heavy scenes, where the game itself drops below 60 fps, a few frames can still be
-  missed (about 0.07–0.08 % in long test recordings). `-gpuprio` can help; test it per game.
+- In very GPU-heavy scenes, where the game itself drops below the recording frame rate, a few frames
+  can still be missed (about 0.07–0.08 % in long 60 fps test recordings). `-gpuprio` can help; test
+  it per game.
+- Frame rates other than 60 fps have not been tested in games yet. A frame rate above the monitor's
+  refresh rate only adds repeated frames, and NVENC may not keep up with 4K at high frame rates.
 
 ## License
 

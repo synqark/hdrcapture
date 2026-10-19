@@ -7,7 +7,7 @@
 //   -o FILE        output file (default: rec_YYYYmmdd_HHMMSS.mkv)
 //   -t SEC         record duration in seconds (default 0 = until Enter / Ctrl+C)
 //   -monitor N     DXGI output index (default 0)
-//   -fps N         frame rate (default 60)
+//   -fps N         output frame rate, integer 1..480 (default 60; pacing constants are time based)
 //   -codec NAME    hevc | av1 (default hevc)
 //   -cq N          constant quality, VBR with a target quality (default 18; hevc 1..51, av1 1..63)
 //   -bitrate MBPS  average bitrate in Mbit/s instead of -cq (VBR, max rate 1.5x unless -maxrate)
@@ -41,6 +41,7 @@
 #include <shellapi.h>
 #include <tlhelp32.h>
 
+#include <algorithm>
 #include <atomic>
 #include <condition_variable>
 #include <deque>
@@ -890,6 +891,7 @@ int main() {
             return 0;
         } else { fprintf(stderr, "unknown option %s\n", a.c_str()); return 2; }
     }
+    if (fps < 1 || fps > 480) { fprintf(stderr, "ERROR: -fps must be an integer from 1 to 480\n"); return 2; }
     if (out_path.empty()) {
         time_t t = time(nullptr); struct tm lt; localtime_s(&lt, &t);
         char buf[64]; strftime(buf, sizeof(buf), "rec_%Y%m%d_%H%M%S.mkv", &lt);
@@ -991,8 +993,9 @@ int main() {
         ID3D11Texture2D *texA = nullptr; IDXGIKeyedMutex *kmA = nullptr;
         bool busy = false;
     };
-    const int kRing = 6;
-    RingTex ring[kRing];
+    // 100 ms of frames (6 at 60 fps, the verified size), at least 6
+    const int kRing = std::max(6, (fps + 9) / 10);
+    std::vector<RingTex> ring(kRing);
     for (int i = 0; i < kRing; i++) {
         D3D11_TEXTURE2D_DESC td = {};
         td.Width = W; td.Height = H; td.MipLevels = 1; td.ArraySize = 1;
@@ -1141,12 +1144,20 @@ int main() {
     auto last_report = t0;
     int ret = 0;
     FILE *tl = timelog.empty() ? nullptr : _wfopen(to_wide(timelog).c_str(), L"w");
-    if (tl) fprintf(tl, "present_us,acquire_latency_ms,accumulated,slot_float,slot,action,phase,ring,copy_ms,release_ms\n");
+    if (tl) fprintf(tl, "present_us,acquire_latency_ms,accumulated,slot_float,slot,action,phase,ring,copy_ms,release_ms,fps\n");
     double phase = 0.0;
-    const double kFillStart = 6.0;           // empty slots before repeats are fed during a freeze
-    const int64_t kFillMargin = 3;           // ...staying this many slots behind the current time
-    const double kPhaseMax = 0.5;            // |phase| limit in slots (keeps video within ~8 ms of real time)
+    // Pacing constants were tuned at 60 fps; time-based ones scale with the frame rate so that they keep
+    // the same duration. Every expression gives exactly the tuned value at 60 fps (60.0 / 60 == 1.0).
+    const double kRateScale = 60.0 / fps;
+    const double kFillStart = fps * 100 / 1000.0;            // 100 ms of empty slots before repeats are fed
+    const int64_t kFillMargin = (fps * 50 + 999) / 1000;     // ...staying >= 50 ms behind the current time
+    const int64_t kLockFrames = (fps + 1) / 2;               // 0.5 s of fast phase locking at the start
+    const double kGainLock = std::min(0.3 * kRateScale, 0.5);   // per-frame phase gains: same time constant
+    const double kGain = std::min(0.03 * kRateScale, 0.5);      // at any frame rate (capped for stability)
+    const double kPhaseMax = 0.5;            // |phase| limit in slots (half a frame: 8.3 ms at 60 fps)
     int64_t locked_frames = 0;
+    printf("pacing: %d fps, lock %lld frames, phase gain %.3f/%.3f, freeze fill after %.1f slots (margin %lld), "
+           "%d shared buffers\n", fps, (long long)kLockFrames, kGainLock, kGain, kFillStart, (long long)kFillMargin, kRing);
 
     // ---- encoder thread: converts shared FP16 buffers to P010 and encodes ----
     struct Item { int ring; int64_t slot; };          // ring == -1: repeat the previous image
@@ -1278,8 +1289,8 @@ int main() {
             // Source frozen (loading screen etc.): hand the repeats to the encoder as time passes instead
             // of queueing the whole gap when the next frame arrives. That burst (~100 repeats after a
             // 2 s freeze) kept NVENC busy and overflowed the shared ring right after the freeze.
-            // Starts only after kFillStart empty slots (never at 60 / 30 fps) and stays kFillMargin
-            // slots behind "now", so a frame presented now still lands on a new slot.
+            // Starts only after kFillStart empty slots (100 ms: never for a source at 30 fps or more)
+            // and stays kFillMargin slots behind "now", so a frame presented now still lands on a new slot.
             if (last_slot >= 0) {
                 const double sf_now = (double)(acq_qpc - first_qpc) / qpf.QuadPart * fps - phase;
                 if (sf_now - (double)last_slot > kFillStart) {
@@ -1289,8 +1300,8 @@ int main() {
                         dups++;
                         dup_source++;
                         last_slot = k;
-                        if (tl) fprintf(tl, "%lld,0,0,%.3f,%lld,fill,%.4f,,,\n",
-                                        (long long)((acq_qpc - first_qpc) * 1000000LL / qpf.QuadPart), sf_now, (long long)k, phase);
+                        if (tl) fprintf(tl, "%lld,0,0,%.3f,%lld,fill,%.4f,,,,%d\n",
+                                        (long long)((acq_qpc - first_qpc) * 1000000LL / qpf.QuadPart), sf_now, (long long)k, phase, fps);
                     }
                 }
             }
@@ -1315,7 +1326,7 @@ int main() {
         double sf = (double)(pq - first_qpc) / qpf.QuadPart * fps - phase;
         int64_t slot = llround(sf);
         double err = sf - (double)slot;                 // [-0.5, 0.5]
-        phase += (locked_frames < 30 ? 0.3 : 0.03) * err;
+        phase += (locked_frames < kLockFrames ? kGainLock : kGain) * err;
         // The phase may only center presents inside their slots, not absorb a rate difference: with a
         // source slightly below 60 fps (e.g. 59.94) it grew without bound and the video ran ahead of
         // the QPC-placed audio (0.8 s after 30 min). Clamped, the slow drift ends in a single repeat
@@ -1330,7 +1341,7 @@ int main() {
                 action = "early";
             } else {
                 drops++;
-                if (tl) fprintf(tl, "%lld,%.3f,%d,%.3f,%lld,drop,%.4f,,,\n", pres_us, lat_ms, acc, sf, (long long)slot, phase);
+                if (tl) fprintf(tl, "%lld,%.3f,%d,%.3f,%lld,drop,%.4f,,,,%d\n", pres_us, lat_ms, acc, sf, (long long)slot, phase, fps);
                 tex->Release();
                 continue;
             }
@@ -1359,8 +1370,8 @@ int main() {
         const int64_t rel_qpc = qpc_now();
         tex->Release();
         cap.release_frame();
-        if (tl) fprintf(tl, ",%d,%.3f,%.3f\n", ri, (double)(rel_qpc - sync_qpc) * 1000.0 / qpf.QuadPart,
-                        (double)(qpc_now() - rel_qpc) * 1000.0 / qpf.QuadPart);
+        if (tl) fprintf(tl, ",%d,%.3f,%.3f,%d\n", ri, (double)(rel_qpc - sync_qpc) * 1000.0 / qpf.QuadPart,
+                        (double)(qpc_now() - rel_qpc) * 1000.0 / qpf.QuadPart, fps);
         last_slot = slot;
 
         print_status(false);

@@ -17,9 +17,10 @@ import numpy as np
 def offsets(csv_path):
     rows = [r for r in csv.DictReader(open(csv_path, newline=""))
             if r["action"] in ("new", "early")]   # frames placed in the video (not drop / fill)
-    v = np.array([int(r["slot"]) / 60.0 for r in rows])
+    fps = int(rows[0].get("fps") or 60)           # older logs (no fps column) are 60 fps
+    v = np.array([int(r["slot"]) / fps for r in rows])
     off = np.array([int(r["present_us"]) / 1e6 for r in rows]) - v
-    w = 121                                       # ~2 s rolling median: keep the drift, drop the jitter
+    w = 2 * fps + 1                               # ~2 s rolling median: keep the drift, drop the jitter
     pad = np.pad(off, (w // 2, w // 2), mode="edge")
     smooth = np.median(np.lib.stride_tricks.sliding_window_view(pad, w), axis=1)
     return v, smooth

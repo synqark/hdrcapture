@@ -104,6 +104,7 @@ static Kind g_last_kind = Kind::Normal;
 static int g_idle_ticks;
 static bool g_filling;   // controls are being set from code: ignore their change notifications
 static std::vector<std::wstring> g_audio_apps;   // IDC_AUDIOSRC items from index 2 on
+static std::vector<int> g_fps_items;             // IDC_FPS items
 
 // ---------------------------------------------------------------------------
 // small helpers
@@ -230,7 +231,7 @@ static void load_settings() {
     g_cfg.abitrate = ini_geti(L"ABitrate", d.abitrate);
     g_cfg.timelog = ini_geti(L"TimeLog", d.timelog);
     g_cfg.extra = ini_get(L"ExtraArgs", d.extra);
-    if (g_cfg.fps <= 0) g_cfg.fps = 60;
+    if (g_cfg.fps < 1 || g_cfg.fps > 480) g_cfg.fps = 60;   // hdrrec -fps accepts integers 1..480
     if (g_cfg.codec != L"av1") g_cfg.codec = L"hevc";
     // p5..p7 cannot keep up with 4K60 while a game loads the GPU (measured: hevc p6 overflowed the
     // encoder queue, av1 p6 missed captures), so the GUI offers p1..p4 only
@@ -492,6 +493,22 @@ static void fill_quality() {
     g_filling = false;
 }
 
+// output frame rate: common rates, plus any other integer rate set in the ini (Fps=)
+static void fill_fps() {
+    g_fps_items = {30, 60, 120, 144, 240};
+    if (std::find(g_fps_items.begin(), g_fps_items.end(), g_cfg.fps) == g_fps_items.end()) {
+        g_fps_items.push_back(g_cfg.fps);
+        std::sort(g_fps_items.begin(), g_fps_items.end());
+    }
+    g_filling = true;
+    SendDlgItemMessageW(g_dlg, IDC_FPS, CB_RESETCONTENT, 0, 0);
+    for (size_t i = 0; i < g_fps_items.size(); i++) {
+        SendDlgItemMessageW(g_dlg, IDC_FPS, CB_ADDSTRING, 0, (LPARAM)fmt(L"%d fps", g_fps_items[i]).c_str());
+        if (g_fps_items[i] == g_cfg.fps) SendDlgItemMessageW(g_dlg, IDC_FPS, CB_SETCURSEL, i, 0);
+    }
+    g_filling = false;
+}
+
 static void fill_encoder() {
     static const wchar_t *presets[4] = {L"p1（最速）", L"p2", L"p3", L"p4（標準・最高画質）"};
     g_filling = true;
@@ -538,6 +555,11 @@ static void on_setting_changed(int id) {
     case IDC_PRESET: g_cfg.preset = L"p" + std::to_wstring(std::max(cb_sel(IDC_PRESET), 0) + 1); break;
     case IDC_RCMODE: g_cfg.rc = cb_sel(IDC_RCMODE) == 1 ? L"bitrate" : L"cq"; fill_quality(); break;
     case IDC_GPUPRIO: g_cfg.gpuprio = std::max(cb_sel(IDC_GPUPRIO), 0); break;
+    case IDC_FPS: {
+        int s = cb_sel(IDC_FPS);
+        if (s >= 0 && s < (int)g_fps_items.size()) g_cfg.fps = g_fps_items[s];
+        break;
+    }
     }
     save_settings();
 }
@@ -711,7 +733,7 @@ static void update_ui() {
     SetDlgItemTextW(g_dlg, IDC_TOGGLE, rec ? L"録画停止" : L"録画開始");
     EnableWindow(GetDlgItem(g_dlg, IDC_TOGGLE), g_state != State::Stopping);
     // recording settings are fixed while hdrrec runs
-    for (int id : {IDC_MONITOR, IDC_CODEC, IDC_PRESET, IDC_RCMODE, IDC_QVALUE, IDC_QSPIN, IDC_AUDIOSRC, IDC_AGAIN, IDC_AGAIN_SPIN, IDC_GPUPRIO})
+    for (int id : {IDC_MONITOR, IDC_CODEC, IDC_PRESET, IDC_RCMODE, IDC_QVALUE, IDC_QSPIN, IDC_AUDIOSRC, IDC_AGAIN, IDC_AGAIN_SPIN, IDC_GPUPRIO, IDC_FPS})
         EnableWindow(GetDlgItem(g_dlg, id), g_state == State::Idle);
     int ic = g_state == State::Recording ? 2 : g_state == State::Idle ? 0 : 1;
     SendMessageW(g_dlg, WM_SETICON, ICON_SMALL, (LPARAM)g_icon_small[ic]);
@@ -1060,6 +1082,7 @@ static INT_PTR CALLBACK dlg_proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         SendDlgItemMessageW(h, IDC_HOTKEY, HKM_SETHOTKEY, to_hotkey_ctrl(g_cfg.hk_vk, g_cfg.hk_mod), 0);
         SetDlgItemTextW(h, IDC_FOLDER, g_cfg.out_dir.c_str());
         fill_monitors();
+        fill_fps();
         fill_encoder();
         fill_audio();
         fill_gain();
@@ -1089,7 +1112,7 @@ static INT_PTR CALLBACK dlg_proc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             if (HIWORD(wp) == CBN_DROPDOWN && !g_filling) fill_audio();   // list applications playing sound now
             if (HIWORD(wp) == CBN_SELCHANGE && !g_filling) on_audio_changed();
             break;
-        case IDC_CODEC: case IDC_PRESET: case IDC_RCMODE: case IDC_GPUPRIO:
+        case IDC_CODEC: case IDC_PRESET: case IDC_RCMODE: case IDC_GPUPRIO: case IDC_FPS:
             if (HIWORD(wp) == CBN_SELCHANGE && !g_filling) on_setting_changed(LOWORD(wp));
             break;
         case IDC_QVALUE:

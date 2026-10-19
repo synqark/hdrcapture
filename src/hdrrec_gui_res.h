@@ -24,6 +24,7 @@
 #define IDC_AGAIN        1019
 #define IDC_AGAIN_SPIN   1020
 #define IDC_GPUPRIO      1021
+#define IDC_FPS          1022
 
 #define IDM_TOGGLE       2001
 #define IDM_SHOW         2002
