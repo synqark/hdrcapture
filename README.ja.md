@@ -8,10 +8,9 @@
 HDR10（BT.2020 PQ, 10bit）で、
 NVIDIA NVENC（HEVC または AV1）により録画します。音声はシステム全体、または特定アプリの音だけを録音できます。
 
-OBS や NVIDIA App の録画で起きる **interval stutter**（滑らかな 60fps のはずが、周期的にフレームが
-重複・欠落する現象。[OBS フォーラムのスレッド](https://obsproject.com/forum/threads/interval-stutter-jitter-duplicated-frames-bug-workarounds.179196/)）
-を解消するために作りました。ゲームが安定して 60fps で動いている状態の 20 秒テスト録画では、
-1200 フレーム中 1200 フレームがすべて異なるゲームフレームになり、重複も欠落もありません。
+OBS や NVIDIA App の録画で起きる **interval stutter**（フレームレートのズレの吸収のために、数百 ms 程度フレームが重複する期間が周期的に発生する現象。[OBS フォーラムのスレッド](https://obsproject.com/forum/threads/interval-stutter-jitter-duplicated-frames-bug-workarounds.179196/)）
+を解消するために作りました。  
+本ツールではフレーム単位の時間管理により、補完や省略を最低限に抑える仕組みになっています。
 
 <p align="center"><img src="images/gui.png" alt="hdrrec の GUI" width="480"></p>
 

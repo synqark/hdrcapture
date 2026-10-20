@@ -8,11 +8,11 @@ hdrrec records a borderless-fullscreen game at 3840x2160 with a constant frame r
 default; any integer rate such as 120 fps can be chosen), HDR10 (BT.2020 PQ, 10-bit) with NVIDIA
 NVENC (HEVC or AV1), together with system audio or the audio of a single application.
 
-It was written to get rid of the **interval stutter** — periodic duplicated / skipped frames in
-otherwise smooth 60 fps recordings — that OBS and NVIDIA App recordings can show
-([OBS forum thread](https://obsproject.com/forum/threads/interval-stutter-jitter-duplicated-frames-bug-workarounds.179196/)).
-In 20-second test recordings of a game running at a steady 60 fps, hdrrec writes 1200 of 1200
-frames as unique game frames, with no repeats and no skips.
+It was written to get rid of the **interval stutter** that OBS and NVIDIA App recordings can show:
+to make up for a small frame rate mismatch, stretches of a few hundred milliseconds with duplicated
+frames recur at regular intervals
+([OBS forum thread](https://obsproject.com/forum/threads/interval-stutter-jitter-duplicated-frames-bug-workarounds.179196/)).  
+hdrrec times every frame individually, which keeps repeated and skipped frames to a minimum.
 
 <p align="center"><img src="images/gui.png" alt="hdrrec GUI (the user interface is in Japanese)" width="480"></p>
 
